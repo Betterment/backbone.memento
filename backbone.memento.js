@@ -6,154 +6,174 @@
 // Documentation and Full License Available at:
 // http://github.com/derickbailey/backbone.memento
 
-Backbone.Memento = (function(Backbone, _){
-  'use strict';
+define(
+[
+"underscore",
+"backbone"
+],
 
-  // ----------------------------
-  // Memento: the public API
-  // ----------------------------
-  var Memento = function(structure, config){
-    this.version = "0.4.1a";
+function(_, Backbone) {
+    Backbone.Memento = (function(Backbone, _) {
+        'use strict';
 
-    config = _.extend({ignore: []}, config);
+        // ----------------------------
+        // Memento: the public API
+        // ----------------------------
+        var Memento = function(structure, config) {
+            this.version = "0.4.1a";
 
-    var serializer = new Serializer(structure, config);
-    var mementoStack = new MementoStack(structure, config);
+            config = _.extend({
+                ignore: []
+            }, config);
 
-    var restoreState = function (previousState, restoreConfig){
-      if (!previousState){ return; }
-      serializer.deserialize(previousState, restoreConfig);
-    };
+            var serializer = new Serializer(structure, config);
+            var mementoStack = new MementoStack(structure, config);
 
-    this.store = function(){
-      var currentState = serializer.serialize();
-      mementoStack.push(currentState);
-    };
+            var restoreState = function(previousState, restoreConfig) {
+                if (!previousState) {
+                    return;
+                }
+                serializer.deserialize(previousState, restoreConfig);
+            };
 
-    this.restore = function(restoreConfig){
-      var previousState = mementoStack.pop();
-      restoreState(previousState, restoreConfig);
-    };
+            this.store = function() {
+                var currentState = serializer.serialize();
+                mementoStack.push(currentState);
+            };
 
-    this.restart = function(restoreConfig){
-      var previousState = mementoStack.rewind();
-      restoreState(previousState, restoreConfig);
-    };
-  };
+            this.restore = function(restoreConfig) {
+                var previousState = mementoStack.pop();
+                restoreState(previousState, restoreConfig);
+            };
 
-  // ----------------------------
-  // TypeHelper: a consistent API for removing attributes and
-  // restoring attributes, on models and collections
-  // ----------------------------
-  var TypeHelper = function(structure){
-    if (structure instanceof Backbone.Model) {
-      this.removeAttr = function(data, restoreConfig){ structure.unset(data, restoreConfig); };
-      this.restore = function(data){ structure.set(data); };
-    } else {
-      this.removeAttr = function(data){ structure.remove(data); };
-      this.restore = function(data){ structure.reset(data); };
-    }
-  };
+            this.restart = function(restoreConfig) {
+                var previousState = mementoStack.rewind();
+                restoreState(previousState, restoreConfig);
+            };
+        };
 
-  // ----------------------------
-  // Serializer: serializer and deserialize model and collection state
-  // ----------------------------
-  var Serializer = function(structure, config){
-    var typeHelper = new TypeHelper(structure);
+        // ----------------------------
+        // TypeHelper: a consistent API for removing attributes and
+        // restoring attributes, on models and collections
+        // ----------------------------
+        var TypeHelper = function(structure) {
+            if (structure instanceof Backbone.Model) {
+                this.removeAttr = function(data, restoreConfig) {
+                    structure.unset(data, restoreConfig);
+                };
+                this.restore = function(data) {
+                    structure.set(data);
+                };
+            } else {
+                this.removeAttr = function(data) {
+                    structure.remove(data);
+                };
+                this.restore = function(data) {
+                    structure.reset(data);
+                };
+            }
+        };
 
-    function dropIgnored(attrs, restoreConfig){
-      attrs = _.clone(attrs);
-      if (restoreConfig.hasOwnProperty("ignore") && restoreConfig.ignore.length > 0){
-        for(var index in restoreConfig.ignore){
-          var ignore = restoreConfig.ignore[index];
-          delete attrs[ignore];
-        }
-      }
-      return attrs;
-    }
+        // ----------------------------
+        // Serializer: serializer and deserialize model and collection state
+        // ----------------------------
+        var Serializer = function(structure, config) {
+            var typeHelper = new TypeHelper(structure);
 
-    function getAddedAttrDiff(newAttrs, oldAttrs){
-      var removedAttrs = [];
+            function dropIgnored(attrs, restoreConfig) {
+                attrs = _.clone(attrs);
+                if (restoreConfig.hasOwnProperty("ignore") && restoreConfig.ignore.length > 0) {
+                    for (var index in restoreConfig.ignore) {
+                        var ignore = restoreConfig.ignore[index];
+                        delete attrs[ignore];
+                    }
+                }
+                return attrs;
+            }
 
-      // guard clause to ensure we have attrs to compare
-      if (!newAttrs || !oldAttrs){
-        return removedAttrs;
-      }
+            function getAddedAttrDiff(newAttrs, oldAttrs) {
+                var removedAttrs = [];
 
-      // if the attr is found in the old set but not in
-      // the new set, then it was remove in the new set
-      for (var attr in oldAttrs){
-        if (oldAttrs.hasOwnProperty(attr)){
-          if (!newAttrs.hasOwnProperty(attr)){
-            removedAttrs.push(attr);
-          }
-        }
-      }
+                // guard clause to ensure we have attrs to compare
+                if (!newAttrs || !oldAttrs) {
+                    return removedAttrs;
+                }
 
-      return removedAttrs;
-    }
+                // if the attr is found in the old set but not in
+                // the new set, then it was remove in the new set
+                for (var attr in oldAttrs) {
+                    if (oldAttrs.hasOwnProperty(attr)) {
+                        if (!newAttrs.hasOwnProperty(attr)) {
+                            removedAttrs.push(attr);
+                        }
+                    }
+                }
 
-    function removeAttributes(structure, attrsToRemove, restoreConfig){
-      for (var index in attrsToRemove){
-        var attr = attrsToRemove[index];
-        typeHelper.removeAttr(attr, restoreConfig);
-      }
-    }
+                return removedAttrs;
+            }
 
-    function restoreState(previousState, restoreConfig){
-      var oldAttrs = dropIgnored(previousState, restoreConfig);
+            function removeAttributes(structure, attrsToRemove, restoreConfig) {
+                for (var index in attrsToRemove) {
+                    var attr = attrsToRemove[index];
+                    typeHelper.removeAttr(attr, restoreConfig);
+                }
+            }
 
-      //get the current state
-      var currentAttrs = structure.toJSON();
-      currentAttrs = dropIgnored(currentAttrs, restoreConfig);
+            function restoreState(previousState, restoreConfig) {
+                var oldAttrs = dropIgnored(previousState, restoreConfig);
 
-      //handle removing attributes that were added
-      var removedAttrs = getAddedAttrDiff(oldAttrs, currentAttrs);
-      removeAttributes(structure, removedAttrs, restoreConfig);
+                //get the current state
+                var currentAttrs = structure.toJSON();
+                currentAttrs = dropIgnored(currentAttrs, restoreConfig);
 
-      typeHelper.restore(oldAttrs);
-    }
+                //handle removing attributes that were added
+                var removedAttrs = getAddedAttrDiff(oldAttrs, currentAttrs);
+                removeAttributes(structure, removedAttrs, restoreConfig);
 
-    this.serialize = function(){
-      var attrs = structure.toJSON();
-      attrs = dropIgnored(attrs, config);
-      return attrs;
-    }
+                typeHelper.restore(oldAttrs);
+            }
 
-    this.deserialize = function(previousState, restoreConfig){
-      restoreConfig = _.extend({}, config, restoreConfig);
-      restoreState(previousState, restoreConfig);
-    }
-      
-  };
+            this.serialize = function() {
+                var attrs = structure.toJSON();
+                attrs = dropIgnored(attrs, config);
+                return attrs;
+            }
 
-  // ----------------------------
-  // MementoStack: push / pop model and collection states
-  // ----------------------------
-  var MementoStack = function(structure, config){
-    var attributeStack;
+            this.deserialize = function(previousState, restoreConfig) {
+                restoreConfig = _.extend({}, config, restoreConfig);
+                restoreState(previousState, restoreConfig);
+            }
 
-    function initialize(){
-      attributeStack = [];
-    }
+        };
 
-    this.push = function(attrs){
-      attributeStack.push(attrs);
-    }
-    
-    this.pop = function(restoreConfig){
-      var oldAttrs = attributeStack.pop();
-      return oldAttrs;
-    }
+        // ----------------------------
+        // MementoStack: push / pop model and collection states
+        // ----------------------------
+        var MementoStack = function(structure, config) {
+            var attributeStack;
 
-    this.rewind = function(){
-      var oldAttrs = attributeStack[0];
-      initialize();
-      return oldAttrs;
-    }
+            function initialize() {
+                attributeStack = [];
+            }
 
-    initialize();
-  };
+            this.push = function(attrs) {
+                attributeStack.push(attrs);
+            }
 
-  return Memento;
-})(Backbone, _);
+            this.pop = function(restoreConfig) {
+                var oldAttrs = attributeStack.pop();
+                return oldAttrs;
+            }
+
+            this.rewind = function() {
+                var oldAttrs = attributeStack[0];
+                initialize();
+                return oldAttrs;
+            }
+
+            initialize();
+        };
+
+        return Memento;
+    })(Backbone, _);
+});
