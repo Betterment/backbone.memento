@@ -47,7 +47,7 @@ Backbone.Memento = (function(Backbone, _){
   // ----------------------------
   var TypeHelper = function(structure){
     if (structure instanceof Backbone.Model) {
-      this.removeAttr = function(data){ structure.unset(data); };
+      this.removeAttr = function(data, restoreConfig){ structure.unset(data, restoreConfig); };
       this.restore = function(data){ structure.set(data); };
     } else {
       this.removeAttr = function(data){ structure.remove(data); };
@@ -93,10 +93,10 @@ Backbone.Memento = (function(Backbone, _){
       return removedAttrs;
     }
 
-    function removeAttributes(structure, attrsToRemove){
+    function removeAttributes(structure, attrsToRemove, restoreConfig){
       for (var index in attrsToRemove){
         var attr = attrsToRemove[index];
-        typeHelper.removeAttr(attr);
+        typeHelper.removeAttr(attr, restoreConfig);
       }
     }
 
@@ -109,7 +109,7 @@ Backbone.Memento = (function(Backbone, _){
 
       //handle removing attributes that were added
       var removedAttrs = getAddedAttrDiff(oldAttrs, currentAttrs);
-      removeAttributes(structure, removedAttrs);
+      removeAttributes(structure, removedAttrs, restoreConfig);
 
       typeHelper.restore(oldAttrs);
     }
